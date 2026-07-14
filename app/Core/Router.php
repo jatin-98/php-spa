@@ -9,61 +9,53 @@ namespace Core;
  * dispatches to the appropriate controller method.
  *
  * Route parameters are defined with a colon prefix, e.g.:
- *   $router->get('/api/posts/:id', 'PostController@show');
+ *   Router::get('/api/posts/:id', 'PostController@show');
  */
 class Router
 {
     /** @var array<int, array{method: string, path: string, handler: string, regex: string}> */
-    private array   $routes = [];
-    private Request $request;
-
-    public function __construct(Request $request)
-    {
-        $this->request = $request;
-    }
+    private static array $routes = [];
 
     // ── Route Registration ────────────────────────────────────────────────────
 
-    public function get(string $path, string $handler): static
+    public static function get(string $path, string $handler): void
     {
-        return $this->addRoute('GET', $path, $handler);
+        self::addRoute('GET', $path, $handler);
     }
 
-    public function post(string $path, string $handler): static
+    public static function post(string $path, string $handler): void
     {
-        return $this->addRoute('POST', $path, $handler);
+        self::addRoute('POST', $path, $handler);
     }
 
-    public function put(string $path, string $handler): static
+    public static function put(string $path, string $handler): void
     {
-        return $this->addRoute('PUT', $path, $handler);
+        self::addRoute('PUT', $path, $handler);
     }
 
-    public function delete(string $path, string $handler): static
+    public static function delete(string $path, string $handler): void
     {
-        return $this->addRoute('DELETE', $path, $handler);
+        self::addRoute('DELETE', $path, $handler);
     }
 
-    private function addRoute(string $method, string $path, string $handler): static
+    private static function addRoute(string $method, string $path, string $handler): void
     {
-        $this->routes[] = [
+        self::$routes[] = [
             'method'  => $method,
             'path'    => $path,
             'handler' => $handler,
-            'regex'   => $this->pathToRegex($path),
+            'regex'   => self::pathToRegex($path),
         ];
-
-        return $this;
     }
 
     // ── Dispatching ───────────────────────────────────────────────────────────
 
-    public function dispatch(): void
+    public static function dispatch(Request $request): void
     {
-        $method = $this->request->getMethod();
-        $uri    = $this->request->getUri();
+        $method = $request->getMethod();
+        $uri    = $request->getUri();
 
-        foreach ($this->routes as $route) {
+        foreach (self::$routes as $route) {
             if ($route['method'] !== $method) {
                 continue;
             }
@@ -71,7 +63,7 @@ class Router
             if (preg_match($route['regex'], $uri, $matches)) {
                 // $matches[0] is the full match — drop it
                 $params = array_slice($matches, 1);
-                $this->callHandler($route['handler'], $params);
+                self::callHandler($route['handler'], $params);
                 return;
             }
         }
@@ -85,7 +77,7 @@ class Router
     /**
      * Convert a path like /api/posts/:id into a regex like #^/api/posts/([^/]+)$#
      */
-    private function pathToRegex(string $path): string
+    private static function pathToRegex(string $path): string
     {
         $escaped = preg_quote($path, '#');
         $pattern = preg_replace('/\\\\:[a-zA-Z_][a-zA-Z0-9_]*/', '([^/]+)', $escaped);
@@ -96,7 +88,7 @@ class Router
      * Instantiate the controller and call the method with route params.
      * Handler format: "ControllerClass@methodName"
      */
-    private function callHandler(string $handler, array $params): void
+    private static function callHandler(string $handler, array $params): void
     {
         [$class, $method] = explode('@', $handler, 2);
         $fqcn = "Controllers\\{$class}";

@@ -9,14 +9,16 @@
  * Route format: $router->METHOD('/api/path/:param', 'Controller@method');
  */
 
+use Core\Router;
+
 // ── Posts ─────────────────────────────────────────────────────────────────────
-$router->get('/api/posts',         'ApiController@index');    // GET    /api/posts
-$router->get('/api/posts/:id',     'ApiController@show');     // GET    /api/posts/1
-$router->post('/api/posts',        'ApiController@store');    // POST   /api/posts
-$router->delete('/api/posts/:id',  'ApiController@destroy');  // DELETE /api/posts/1
+Router::get('/api/posts',         'ApiController@index');    // GET    /api/posts
+Router::get('/api/posts/:id',     'ApiController@show');     // GET    /api/posts/1
+Router::post('/api/posts',        'ApiController@store');    // POST   /api/posts
+Router::delete('/api/posts/:id',  'ApiController@destroy');  // DELETE /api/posts/1
 
 // ── Tags ──────────────────────────────────────────────────────────────────────
-$router->get('/api/tags',          'ApiController@tags');     // GET    /api/tags
+Router::get('/api/tags',          'ApiController@tags');     // GET    /api/tags
 
 // ── Meta ─────────────────────────────────────────────────────────────────────
-$router->get('/api/stats',         'ApiController@stats');    // GET    /api/stats
+Router::get('/api/stats',         'ApiController@stats');    // GET    /api/stats

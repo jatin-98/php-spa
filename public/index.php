@@ -34,7 +34,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 $request = new Request();
-$router  = new Router($request);
 
 // Load API route definitions
 require_once BASE_PATH . '/app/routes.php';
@@ -42,7 +41,7 @@ require_once BASE_PATH . '/app/routes.php';
 // ── Dispatch ─────────────────────────────────────────────────────────────────
 if ($request->isApi()) {
     // PHP handles this — return JSON
-    $router->dispatch();
+    Router::dispatch($request);
 } else {
     // Hand off to the Vanilla JS SPA
     header('Content-Type: text/html; charset=UTF-8');
