@@ -53,7 +53,8 @@ export function Navbar() {
                     ${user 
                         ? `
                            <div class="user-menu">
-                               <div class="user-avatar">${user.name.charAt(0).toUpperCase()}</div>
+                               ${link('/posts/create', '+ Post', 'btn-primary btn-sm')}
+                               <div class="user-avatar" style="margin-left: 0.5rem;">${user.name.charAt(0).toUpperCase()}</div>
                                <span class="user-name">${user.name}</span>
                                ${user.role === 'admin' ? '<span class="role-badge">Admin</span>' : ''}
                                <button id="logout-btn" class="nav-link btn-logout">Logout</button>

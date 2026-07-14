@@ -46,6 +46,13 @@ export const Auth = {
         return this.getUser()?.role === 'admin';
     },
 
+    /** Returns true if the user can edit a specific post based on its author name. */
+    canEdit(authorName) {
+        const user = this.getUser();
+        if (!user) return false;
+        return user.role === 'admin' || user.name === authorName;
+    },
+
     /** Remove token + user from storage (logout). */
     clear() {
         localStorage.removeItem(this.TOKEN_KEY);

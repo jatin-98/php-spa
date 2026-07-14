@@ -13,6 +13,7 @@ import { Navbar }       from './components/Navbar.js';
 import { HomePage }     from './pages/HomePage.js';
 import { AboutPage }    from './pages/AboutPage.js';
 import { PostPage }     from './pages/PostPage.js';
+import { PostFormPage } from './pages/PostFormPage.js';
 import { LoginPage }    from './pages/LoginPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
 import { NotFoundPage } from './pages/NotFoundPage.js';
@@ -119,12 +120,14 @@ document.addEventListener('click', (e) => {
 const router = new Router();
 
 router
-    .add('/',           ()   => render(HomePage()))
-    .add('/about',      ()   => render(AboutPage()))
-    .add('/login',      ()   => render(LoginPage()))
-    .add('/register',   ()   => render(RegisterPage()))
-    .add('/posts/:id',  (id) => render(PostPage(id)))
-    .notFound(          ()   => render(NotFoundPage()));
+    .add('/',                ()   => render(HomePage()))
+    .add('/about',           ()   => render(AboutPage()))
+    .add('/login',           ()   => render(LoginPage()))
+    .add('/register',        ()   => render(RegisterPage()))
+    .add('/posts/create',    ()   => render(PostFormPage()))
+    .add('/posts/edit/:id',  (id) => render(PostFormPage(id)))
+    .add('/posts/:id',       (id) => render(PostPage(id)))
+    .notFound(               ()   => render(NotFoundPage()));
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 initTheme();   // apply stored theme (safety net, index.html inline script is faster)

@@ -15,7 +15,8 @@ use Core\Router;
 Router::get('/api/posts',         'ApiController@index');    // GET    /api/posts
 Router::get('/api/posts/:id',     'ApiController@show');     // GET    /api/posts/1
 Router::post('/api/posts',        'ApiController@store', ['auth']);   // POST   /api/posts
-Router::delete('/api/posts/:id',  'ApiController@destroy', ['admin']); // DELETE /api/posts/1
+Router::put('/api/posts/:id',     'ApiController@update', ['auth']);  // PUT    /api/posts/1
+Router::delete('/api/posts/:id',  'ApiController@destroy', ['auth']); // DELETE /api/posts/1
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 Router::post('/api/auth/register', 'AuthController@register');
