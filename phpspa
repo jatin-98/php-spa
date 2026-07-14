@@ -9,6 +9,7 @@
  *   php phpspa migrate:rollback  Roll back the last batch of migrations
  *   php phpspa migrate:fresh     Drop everything and re-run all migrations
  *   php phpspa db:seed           Seed dummy data
+ *   php phpspa user:seed         Seed a demo user and admin user
  */
 
 define('BASE_PATH', __DIR__);
@@ -41,6 +42,9 @@ switch ($command) {
     case 'db:seed':
         seed($pdo);
         break;
+    case 'user:seed':
+        seedUsers($pdo);
+        break;
     case 'help':
     default:
         echo "PhpSPA CLI\n\n";
@@ -49,6 +53,7 @@ switch ($command) {
         echo "  migrate:rollback  Roll back the last batch of migrations\n";
         echo "  migrate:fresh     Drop everything and re-run all migrations\n";
         echo "  db:seed           Seed dummy data\n";
+        echo "  user:seed         Seed a demo user and admin user\n";
         break;
 }
 
@@ -259,4 +264,43 @@ function seed(PDO $pdo): void
     }
 
     echo "Seeded {$count} posts successfully.\n";
+}
+
+function seedUsers(PDO $pdo): void
+{
+    echo "Seeding users...\n";
+
+    try {
+        $pdo->query('SELECT 1 FROM users LIMIT 1');
+    } catch (PDOException $e) {
+        die("Error: The 'users' table does not exist. Run migrations first.\n");
+    }
+
+    $stmt = $pdo->prepare("
+        INSERT INTO users (name, email, password_hash, role)
+        VALUES (?, ?, ?, ?)
+    ");
+
+    $users = [
+        ['Admin User', 'admin@phpspa.com', 'password', 'admin'],
+        ['Demo User', 'user@phpspa.com', 'password', 'user']
+    ];
+
+    $count = 0;
+    foreach ($users as $u) {
+        // Skip if exists
+        $check = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+        $check->execute([$u[1]]);
+        if (!$check->fetch()) {
+            $stmt->execute([
+                $u[0],
+                $u[1],
+                password_hash($u[2], PASSWORD_BCRYPT, ['cost' => 12]),
+                $u[3]
+            ]);
+            $count++;
+        }
+    }
+
+    echo "Seeded {$count} users successfully (Passwords are 'password').\n";
 }

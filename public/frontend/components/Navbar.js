@@ -1,9 +1,12 @@
+import { Auth } from '../utils/auth.js';
+
 /**
  * Navbar.js — Persistent Navigation Component
  *
  * Renders the top navigation bar, including:
  *  - Brand logo + name
  *  - Page links with active-link detection
+ *  - Auth links (Login/Register or User Menu)
  *  - API quick-link
  *  - Light / Dark theme toggle button
  *  - Stack pills
@@ -11,6 +14,7 @@
 export function Navbar() {
     const path    = window.location.pathname;
     const isDark  = document.documentElement.getAttribute('data-theme') !== 'light';
+    const user    = Auth.getUser();
 
     const link = (href, label, extraClass = '') => {
         const isActive = path === href || (href !== '/' && path.startsWith(href));
@@ -43,6 +47,26 @@ export function Navbar() {
                 <div class="navbar-links" role="menubar">
                     ${link('/', 'Home')}
                     ${link('/about', 'About')}
+
+                    <div class="nav-divider"></div>
+
+                    ${user 
+                        ? `
+                           <div class="user-menu">
+                               <div class="user-avatar">${user.name.charAt(0).toUpperCase()}</div>
+                               <span class="user-name">${user.name}</span>
+                               ${user.role === 'admin' ? '<span class="role-badge">Admin</span>' : ''}
+                               <button id="logout-btn" class="nav-link btn-logout">Logout</button>
+                           </div>
+                          `
+                        : `
+                           ${link('/login', 'Sign In')}
+                           ${link('/register', 'Register', 'btn btn-primary btn-sm')}
+                          `
+                    }
+
+                    <div class="nav-divider"></div>
+
                     <a href="/api/stats" target="_blank" rel="noopener" class="nav-link nav-api-link" title="Open raw JSON API">
                         API ↗
                     </a>

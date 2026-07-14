@@ -17,7 +17,9 @@ require_once BASE_PATH . '/app/Core/Request.php';
 require_once BASE_PATH . '/app/Core/Response.php';
 require_once BASE_PATH . '/app/Core/Router.php';
 require_once BASE_PATH . '/app/Core/Database.php';
+require_once BASE_PATH . '/app/Core/Auth.php';
 require_once BASE_PATH . '/app/Controllers/ApiController.php';
+require_once BASE_PATH . '/app/Controllers/AuthController.php';
 
 use Core\Request;
 use Core\Response;

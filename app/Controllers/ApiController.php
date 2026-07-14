@@ -4,6 +4,7 @@ namespace Controllers;
 
 use Core\Database;
 use Core\Response;
+use Core\Auth;
 
 /**
  * ApiController — now backed by a real SQLite database via PDO.
@@ -75,12 +76,15 @@ class ApiController
         $body = (new \Core\Request())->getBody() ?? [];
 
         // Basic validation
-        $required = ['title', 'excerpt', 'content', 'author'];
+        $required = ['title', 'excerpt', 'content'];
         foreach ($required as $field) {
             if (empty($body[$field])) {
                 Response::error("Missing required field: {$field}", 422);
             }
         }
+
+        // The route is protected by 'auth' middleware, so Auth::user() will always return the payload here.
+        $user = Auth::user();
 
         $stmt = $pdo->prepare("
             INSERT INTO posts (title, excerpt, content, author, tags, date)
@@ -91,7 +95,7 @@ class ApiController
             ':title'   => trim($body['title']),
             ':excerpt' => trim($body['excerpt']),
             ':content' => trim($body['content']),
-            ':author'  => trim($body['author']),
+            ':author'  => $user['name'],
             ':tags'    => json_encode($body['tags'] ?? []),
             ':date'    => date('Y-m-d'),
         ]);

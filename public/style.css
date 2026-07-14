@@ -1244,3 +1244,146 @@ pre code {
     .hero-subtitle    { font-size: 0.95rem; }
     .not-found-title  { font-size: 1.5rem; }
 }
+
+/* ── Auth Forms ────────────────────────────────────────────────────────────── */
+
+.auth-container {
+    display:         flex;
+    justify-content: center;
+    align-items:     center;
+    min-height:      60vh;
+    padding:         2rem 0;
+}
+
+.auth-card {
+    width:      100%;
+    max-width:  400px;
+    padding:    2.5rem 2rem;
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+}
+
+.auth-card h1 {
+    margin-bottom: 0.5rem;
+    font-size:     1.75rem;
+}
+
+.auth-form {
+    margin-top: 2rem;
+    text-align: left;
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display:       block;
+    margin-bottom: 0.5rem;
+    font-weight:   500;
+    color:         var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.form-group input {
+    width:         100%;
+    padding:       0.75rem 1rem;
+    border-radius: var(--r-md);
+    border:        1px solid var(--border);
+    background:    rgba(0, 0, 0, 0.2);
+    color:         var(--text-primary);
+    font-family:   var(--font-sans);
+    font-size:     1rem;
+    transition:    border-color var(--dur-fast) var(--ease),
+                   box-shadow var(--dur-fast) var(--ease),
+                   background var(--dur-fast) var(--ease);
+}
+
+[data-theme="light"] .form-group input {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.form-group input:focus {
+    outline:      none;
+    border-color: var(--border-focus);
+    box-shadow:   0 0 0 3px var(--purple-dim);
+}
+
+.auth-form .btn {
+    width:      100%;
+    margin-top: 1rem;
+    justify-content: center;
+}
+
+.auth-footer {
+    margin-top: 2rem;
+    font-size:  0.9rem;
+    color:      var(--text-secondary);
+}
+
+.form-error {
+    background: rgba(239, 68, 68, 0.1);
+    border:     1px solid rgba(239, 68, 68, 0.3);
+    color:      #ef4444;
+    padding:    0.75rem;
+    border-radius: var(--r-md);
+    margin-bottom: 1.25rem;
+    font-size:  0.9rem;
+}
+
+/* User Menu in Navbar */
+.user-menu {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--bg-card);
+    padding: 0.35rem 0.5rem 0.35rem 0.35rem;
+    border-radius: var(--r-full);
+    border: 1px solid var(--border);
+}
+
+.user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--grad-main);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.user-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.role-badge {
+    background: var(--pink-dim);
+    color: var(--pink);
+    font-size: 0.65rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--r-sm);
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.btn-logout {
+    color: var(--text-muted) !important;
+    font-size: 0.8rem;
+    padding: 0.2rem 0.5rem;
+    margin-left: 0.25rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+.btn-logout:hover {
+    color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: var(--r-sm);
+}
