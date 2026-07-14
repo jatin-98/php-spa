@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO -->
+    <title>PhpSPA — Core PHP + Vanilla JS SPA Framework</title>
+    <meta name="description" content="A zero-dependency micro-framework that combines a Core PHP REST API backend with a Vanilla JavaScript Single Page Application frontend. No npm. No Composer. Just pure code.">
+    <meta name="keywords" content="PHP SPA, Vanilla JS, Core PHP, Single Page Application, micro-framework">
+    <meta name="author" content="PhpSPA">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="PhpSPA Framework">
+    <meta property="og:description" content="Build SPAs with Core PHP and Vanilla JS — zero dependencies.">
+    <meta property="og:type" content="website">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/style.css">
+
+    <!--
+        Anti-FOUC: apply the saved theme BEFORE the browser paints.
+        This tiny inline script runs synchronously so there's never a
+        flash of the wrong theme color on page load.
+    -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('phpspa-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+</head>
+<body>
+
+    <!--
+        #app is the SPA mount point.
+        JavaScript will replace everything inside here on every navigation.
+        The initial content is a full-screen loading spinner.
+    -->
+    <div id="app" role="main">
+        <div class="initial-loader" aria-label="Loading application">
+            <div class="initial-loader-inner">
+                <svg class="initial-logo" width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <path d="M24 4L44 15V33L24 44L4 33V15L24 4Z" stroke="url(#lg1)" stroke-width="2" fill="none"/>
+                    <circle cx="24" cy="24" r="7" fill="url(#lg1)"/>
+                    <defs>
+                        <linearGradient id="lg1" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#8b5cf6"/>
+                            <stop offset="1" stop-color="#ec4899"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div class="initial-spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SPA entry point — type="module" enables ES import/export in the browser -->
+    <script type="module" src="/frontend/app.js"></script>
+
+</body>
+</html>
