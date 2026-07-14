@@ -18,33 +18,34 @@ class Router
 
     // ── Route Registration ────────────────────────────────────────────────────
 
-    public static function get(string $path, string $handler): void
+    public static function get(string $path, string $handler, array $middleware = []): void
     {
-        self::addRoute('GET', $path, $handler);
+        self::addRoute('GET', $path, $handler, $middleware);
     }
 
-    public static function post(string $path, string $handler): void
+    public static function post(string $path, string $handler, array $middleware = []): void
     {
-        self::addRoute('POST', $path, $handler);
+        self::addRoute('POST', $path, $handler, $middleware);
     }
 
-    public static function put(string $path, string $handler): void
+    public static function put(string $path, string $handler, array $middleware = []): void
     {
-        self::addRoute('PUT', $path, $handler);
+        self::addRoute('PUT', $path, $handler, $middleware);
     }
 
-    public static function delete(string $path, string $handler): void
+    public static function delete(string $path, string $handler, array $middleware = []): void
     {
-        self::addRoute('DELETE', $path, $handler);
+        self::addRoute('DELETE', $path, $handler, $middleware);
     }
 
-    private static function addRoute(string $method, string $path, string $handler): void
+    private static function addRoute(string $method, string $path, string $handler, array $middleware = []): void
     {
         self::$routes[] = [
             'method'  => $method,
             'path'    => $path,
-            'handler' => $handler,
-            'regex'   => self::pathToRegex($path),
+            'handler'    => $handler,
+            'middleware' => $middleware,
+            'regex'      => self::pathToRegex($path),
         ];
     }
 
@@ -61,6 +62,9 @@ class Router
             }
 
             if (preg_match($route['regex'], $uri, $matches)) {
+                // Run middleware
+                self::runMiddleware($route['middleware']);
+
                 // $matches[0] is the full match — drop it
                 $params = array_slice($matches, 1);
                 self::callHandler($route['handler'], $params);
@@ -73,6 +77,19 @@ class Router
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Run middleware for the matched route.
+     * Currently supports 'auth' and 'admin'.
+     */
+    private static function runMiddleware(array $middleware): void
+    {
+        if (in_array('admin', $middleware)) {
+            Auth::adminGuard();
+        } elseif (in_array('auth', $middleware)) {
+            Auth::guard();
+        }
+    }
 
     /**
      * Convert a path like /api/posts/:id into a regex like #^/api/posts/([^/]+)$#

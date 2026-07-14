@@ -1,3 +1,5 @@
+import { Auth } from '../utils/auth.js';
+
 /**
  * PostPage.js — Single Post Detail Page
  *
@@ -5,7 +7,7 @@
  * and renders a full article view with the raw API response shown at the bottom.
  *
  * @param {string} id - The post ID captured from the URL (/posts/:id)
- * @returns {Promise<string>} HTML string
+ * @returns {Promise<{html: string, init: function}>} Object containing HTML string and init function
  */
 export async function PostPage(id) {
     let post = null;
@@ -26,7 +28,8 @@ export async function PostPage(id) {
 
     // ── Post not found / error ────────────────────────────────────────────────
     if (fetchError || !post) {
-        return `
+        return {
+            html: `
             <div class="page">
                 <div class="post-detail-wrap">
                     <a href="/" class="back-link">← All Posts</a>
@@ -38,7 +41,9 @@ export async function PostPage(id) {
                     </div>
                 </div>
             </div>
-        `;
+        `,
+            init: () => {}
+        };
     }
 
     // ── Full article ──────────────────────────────────────────────────────────
@@ -46,7 +51,15 @@ export async function PostPage(id) {
         .map(t => `<span class="tag tag-lg">${t}</span>`)
         .join('');
 
-    return `
+    const canEdit = Auth.canEdit(post.author);
+    const actionsHtml = canEdit
+        ? `<div style="display: flex; gap: 1rem; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+               <a href="/posts/edit/${post.id}" class="btn btn-ghost">Edit Post</a>
+               <button id="delete-post-btn" class="btn btn-ghost" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">Delete Post</button>
+           </div>`
+        : '';
+
+    const html = `
         <div class="page">
             <div class="post-detail-wrap">
 
@@ -79,6 +92,8 @@ export async function PostPage(id) {
                             browser's native <code>fetch()</code> API — no libraries involved.
                         </p>
                     </div>
+                    
+                    ${actionsHtml}
                 </article>
 
                 <!-- Raw API response (educational) -->
@@ -103,4 +118,39 @@ export async function PostPage(id) {
             </div>
         </div>
     `;
+
+    const init = () => {
+        if (!canEdit) return;
+        
+        const deleteBtn = document.getElementById('delete-post-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', async () => {
+                if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) return;
+                
+                deleteBtn.disabled = true;
+                deleteBtn.textContent = 'Deleting...';
+                
+                try {
+                    const res = await fetch(`/api/posts/${post.id}`, {
+                        method: 'DELETE',
+                        headers: Auth.headers()
+                    });
+                    
+                    if (!res.ok) {
+                        const json = await res.json();
+                        throw new Error(json.error || 'Failed to delete');
+                    }
+                    
+                    window.history.pushState({}, '', '/');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                    deleteBtn.disabled = false;
+                    deleteBtn.textContent = 'Delete Post';
+                }
+            });
+        }
+    };
+
+    return { html, init };
 }

@@ -8,10 +8,14 @@
  */
 
 import { Router }       from './router.js';
+import { Auth }         from './utils/auth.js';
 import { Navbar }       from './components/Navbar.js';
 import { HomePage }     from './pages/HomePage.js';
 import { AboutPage }    from './pages/AboutPage.js';
 import { PostPage }     from './pages/PostPage.js';
+import { PostFormPage } from './pages/PostFormPage.js';
+import { LoginPage }    from './pages/LoginPage.js';
+import { RegisterPage } from './pages/RegisterPage.js';
 import { NotFoundPage } from './pages/NotFoundPage.js';
 
 // ── Theme Management ──────────────────────────────────────────────────────────
@@ -82,9 +86,17 @@ async function render(contentOrPromise) {
         app.innerHTML = Navbar() + SPINNER;
     }
 
-    const content = isAsync ? await contentOrPromise : contentOrPromise;
+    const result = isAsync ? await contentOrPromise : contentOrPromise;
+
+    // Support pages that return { html, init } instead of just a string
+    const content = typeof result === 'string' ? result : result.html;
+    const initFn  = typeof result === 'object' && result.init ? result.init : null;
 
     app.innerHTML = Navbar() + `<main class="main-content" id="main" tabindex="-1">${content}</main>`;
+
+    if (initFn) {
+        initFn();
+    }
 
     // Trigger fade-in
     document.getElementById('main')?.classList.add('page-enter');
@@ -95,10 +107,12 @@ async function render(contentOrPromise) {
 
 // ── Global event delegation ───────────────────────────────────────────────────
 // The navbar is re-rendered on every navigation, so we use event delegation
-// on the document to catch the theme toggle click no matter when it appears.
+// on the document to catch the theme toggle click and logout click no matter when they appear.
 document.addEventListener('click', (e) => {
     if (e.target.closest('#theme-toggle')) {
         toggleTheme();
+    } else if (e.target.closest('#logout-btn')) {
+        Auth.logout();
     }
 });
 
@@ -106,10 +120,14 @@ document.addEventListener('click', (e) => {
 const router = new Router();
 
 router
-    .add('/',           ()   => render(HomePage()))
-    .add('/about',      ()   => render(AboutPage()))
-    .add('/posts/:id',  (id) => render(PostPage(id)))
-    .notFound(          ()   => render(NotFoundPage()));
+    .add('/',                ()   => render(HomePage()))
+    .add('/about',           ()   => render(AboutPage()))
+    .add('/login',           ()   => render(LoginPage()))
+    .add('/register',        ()   => render(RegisterPage()))
+    .add('/posts/create',    ()   => render(PostFormPage()))
+    .add('/posts/edit/:id',  (id) => render(PostFormPage(id)))
+    .add('/posts/:id',       (id) => render(PostPage(id)))
+    .notFound(               ()   => render(NotFoundPage()));
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 initTheme();   // apply stored theme (safety net, index.html inline script is faster)

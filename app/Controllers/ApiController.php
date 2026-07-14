@@ -4,6 +4,7 @@ namespace Controllers;
 
 use Core\Database;
 use Core\Response;
+use Core\Auth;
 
 /**
  * ApiController — now backed by a real SQLite database via PDO.
@@ -75,12 +76,15 @@ class ApiController
         $body = (new \Core\Request())->getBody() ?? [];
 
         // Basic validation
-        $required = ['title', 'excerpt', 'content', 'author'];
+        $required = ['title', 'excerpt', 'content'];
         foreach ($required as $field) {
             if (empty($body[$field])) {
                 Response::error("Missing required field: {$field}", 422);
             }
         }
+
+        // The route is protected by 'auth' middleware, so Auth::user() will always return the payload here.
+        $user = Auth::user();
 
         $stmt = $pdo->prepare("
             INSERT INTO posts (title, excerpt, content, author, tags, date)
@@ -91,7 +95,7 @@ class ApiController
             ':title'   => trim($body['title']),
             ':excerpt' => trim($body['excerpt']),
             ':content' => trim($body['content']),
-            ':author'  => trim($body['author']),
+            ':author'  => $user['name'],
             ':tags'    => json_encode($body['tags'] ?? []),
             ':date'    => date('Y-m-d'),
         ]);
@@ -111,17 +115,84 @@ class ApiController
     }
 
     /**
+     * PUT /api/posts/:id — Update an existing post.
+     */
+    public function update(string $id): void
+    {
+        $pdo  = Database::getInstance();
+        $user = Auth::user(); // Route is protected by 'auth'
+
+        // Check if post exists
+        $stmt = $pdo->prepare('SELECT * FROM posts WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => (int) $id]);
+        $post = $stmt->fetch();
+
+        if (!$post) {
+            Response::error("Post with id={$id} not found.", 404);
+        }
+
+        // Check permissions: must be admin OR the author of the post
+        if ($user['role'] !== 'admin' && $user['name'] !== $post['author']) {
+            Response::error("Forbidden. You don't have permission to edit this post.", 403);
+        }
+
+        $body = (new \Core\Request())->getBody() ?? [];
+        $required = ['title', 'excerpt', 'content'];
+        foreach ($required as $field) {
+            if (empty($body[$field])) {
+                Response::error("Missing required field: {$field}", 422);
+            }
+        }
+
+        $updateStmt = $pdo->prepare("
+            UPDATE posts 
+            SET title = :title, excerpt = :excerpt, content = :content, tags = :tags
+            WHERE id = :id
+        ");
+
+        $updateStmt->execute([
+            ':title'   => trim($body['title']),
+            ':excerpt' => trim($body['excerpt']),
+            ':content' => trim($body['content']),
+            ':tags'    => json_encode($body['tags'] ?? []),
+            ':id'      => (int) $id,
+        ]);
+
+        // Return the updated post
+        $stmt->execute([':id' => (int) $id]);
+        $updatedPost = $this->hydrate($stmt->fetch());
+
+        Response::json([
+            'success' => true,
+            'message' => 'Post updated successfully.',
+            'data'    => $updatedPost,
+        ]);
+    }
+
+    /**
      * DELETE /api/posts/:id — Delete a post by ID.
      */
     public function destroy(string $id): void
     {
         $pdo  = Database::getInstance();
-        $stmt = $pdo->prepare('DELETE FROM posts WHERE id = :id');
-        $stmt->execute([':id' => (int) $id]);
+        $user = Auth::user(); // Route is protected by 'auth'
 
-        if ($stmt->rowCount() === 0) {
+        // Check if post exists first to verify permissions
+        $stmt = $pdo->prepare('SELECT * FROM posts WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => (int) $id]);
+        $post = $stmt->fetch();
+
+        if (!$post) {
             Response::error("Post with id={$id} not found.", 404);
         }
+
+        // Check permissions: must be admin OR the author of the post
+        if ($user['role'] !== 'admin' && $user['name'] !== $post['author']) {
+            Response::error("Forbidden. You don't have permission to delete this post.", 403);
+        }
+
+        $delStmt = $pdo->prepare('DELETE FROM posts WHERE id = :id');
+        $delStmt->execute([':id' => (int) $id]);
 
         Response::json([
             'success' => true,
