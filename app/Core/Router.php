@@ -2,6 +2,8 @@
 
 namespace Core;
 
+use Core\Middleware\MiddlewareInterface;
+
 /**
  * PHP API Router.
  *
@@ -10,11 +12,38 @@ namespace Core;
  *
  * Route parameters are defined with a colon prefix, e.g.:
  *   Router::get('/api/posts/:id', 'PostController@show');
+ *
+ * Middleware is resolved by name from a registry set via setMiddlewareRegistry().
+ * Each named entry must point to a class implementing MiddlewareInterface.
+ *
+ * To add a new middleware:
+ *   1. Create a class implementing MiddlewareInterface in app/Core/Middleware/.
+ *   2. Register it in app/middleware.php: 'name' => YourClass::class
+ *   3. Use the name in your routes: Router::get('...', '...', ['name']);
  */
 class Router
 {
-    /** @var array<int, array{method: string, path: string, handler: string, regex: string}> */
+    /** @var array<int, array{method: string, path: string, handler: string, middleware: string[], regex: string}> */
     private static array $routes = [];
+
+    /**
+     * Middleware registry: maps a name (e.g. 'auth') to a fully-qualified class name.
+     * @var array<string, class-string<MiddlewareInterface>>
+     */
+    private static array $middlewareRegistry = [];
+
+    // ── Registry ──────────────────────────────────────────────────────────────
+
+    /**
+     * Register the application middleware map.
+     * Typically loaded from app/middleware.php via public/index.php.
+     *
+     * @param array<string, class-string<MiddlewareInterface>> $registry
+     */
+    public static function setMiddlewareRegistry(array $registry): void
+    {
+        self::$middlewareRegistry = $registry;
+    }
 
     // ── Route Registration ────────────────────────────────────────────────────
 
@@ -41,8 +70,8 @@ class Router
     private static function addRoute(string $method, string $path, string $handler, array $middleware = []): void
     {
         self::$routes[] = [
-            'method'  => $method,
-            'path'    => $path,
+            'method'     => $method,
+            'path'       => $path,
             'handler'    => $handler,
             'middleware' => $middleware,
             'regex'      => self::pathToRegex($path),
@@ -62,8 +91,8 @@ class Router
             }
 
             if (preg_match($route['regex'], $uri, $matches)) {
-                // Run middleware
-                self::runMiddleware($route['middleware']);
+                // Run the middleware pipeline
+                self::runMiddleware($route['middleware'], $request);
 
                 // $matches[0] is the full match — drop it
                 $params = array_slice($matches, 1);
@@ -76,20 +105,30 @@ class Router
         Response::error("Route not found: [{$method}] {$uri}", 404);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Middleware Pipeline ───────────────────────────────────────────────────
 
     /**
-     * Run middleware for the matched route.
-     * Currently supports 'auth' and 'admin'.
+     * Resolve each middleware name from the registry and call handle().
+     * Middlewares run in the order they are listed on the route.
+     *
+     * @throws \RuntimeException if a middleware name is not registered.
      */
-    private static function runMiddleware(array $middleware): void
+    private static function runMiddleware(array $middleware, Request $request): void
     {
-        if (in_array('admin', $middleware)) {
-            Auth::adminGuard();
-        } elseif (in_array('auth', $middleware)) {
-            Auth::guard();
+        foreach ($middleware as $name) {
+            if (!isset(self::$middlewareRegistry[$name])) {
+                // Fail loudly — an unknown middleware name is a developer error.
+                Response::error("Middleware '{$name}' is not registered. Add it to app/middleware.php.", 500);
+            }
+
+            $class = self::$middlewareRegistry[$name];
+            /** @var MiddlewareInterface $instance */
+            $instance = new $class();
+            $instance->handle($request);
         }
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     /**
      * Convert a path like /api/posts/:id into a regex like #^/api/posts/([^/]+)$#

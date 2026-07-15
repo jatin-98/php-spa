@@ -8,8 +8,8 @@
  *   php phpspa migrate           Run all pending migrations
  *   php phpspa migrate:rollback  Roll back the last batch of migrations
  *   php phpspa migrate:fresh     Drop everything and re-run all migrations
- *   php phpspa db:seed           Seed dummy data
- *   php phpspa user:seed         Seed a demo user and admin user
+ *   php phpspa db:seed           Run ALL seeders (in alphabetical order)
+ *   php phpspa db:seed <Name>    Run a specific seeder, e.g. db:seed Posts
  */
 
 define('BASE_PATH', __DIR__);
@@ -22,11 +22,12 @@ if (php_sapi_name() !== 'cli') {
 }
 
 $command = $argv[1] ?? 'help';
+$arg     = $argv[2] ?? null;  // optional argument, e.g. the seeder name
 
 try {
     $pdo = Database::getInstance();
 } catch (Exception $e) {
-    die("Error connecting to database.\n");
+    die("Error connecting to database: " . $e->getMessage() . "\n");
 }
 
 switch ($command) {
@@ -40,24 +41,102 @@ switch ($command) {
         fresh($pdo);
         break;
     case 'db:seed':
-        seed($pdo);
-        break;
-    case 'user:seed':
-        seedUsers($pdo);
+        runSeeders($pdo, $arg);
         break;
     case 'help':
     default:
-        echo "PhpSPA CLI\n\n";
-        echo "Available commands:\n";
-        echo "  migrate           Run all pending migrations\n";
-        echo "  migrate:rollback  Roll back the last batch of migrations\n";
-        echo "  migrate:fresh     Drop everything and re-run all migrations\n";
-        echo "  db:seed           Seed dummy data\n";
-        echo "  user:seed         Seed a demo user and admin user\n";
+        printHelp();
         break;
 }
 
-// ── Commands ──────────────────────────────────────────────────────────────────
+// ── Help ──────────────────────────────────────────────────────────────────────
+
+function printHelp(): void
+{
+    echo "\n";
+    echo "  \033[1;35mPhpSPA CLI\033[0m\n\n";
+    echo "  \033[0;33mMigrations\033[0m\n";
+    echo "    \033[0;32mmigrate\033[0m               Run all pending migrations\n";
+    echo "    \033[0;32mmigrate:rollback\033[0m      Roll back the last batch of migrations\n";
+    echo "    \033[0;32mmigrate:fresh\033[0m         Drop all tables and re-run all migrations\n";
+    echo "\n";
+    echo "  \033[0;33mSeeders\033[0m\n";
+    echo "    \033[0;32mdb:seed\033[0m               Run all seeders in database/seeders/\n";
+    echo "    \033[0;32mdb:seed <Name>\033[0m        Run a specific seeder (e.g. db:seed Posts)\n";
+    echo "\n";
+    echo "  Seeder files live in \033[0;36mdatabase/seeders/<Name>Seeder.php\033[0m\n";
+    echo "  Each file must define a class implementing SeederInterface.\n";
+    echo "\n";
+}
+
+// ── Seeder Runner ─────────────────────────────────────────────────────────────
+
+/**
+ * Discover and run seeders from database/seeders/.
+ *
+ * If $seederName is provided (e.g. "Posts"), only "<Name>Seeder.php" is run.
+ * Otherwise all *Seeder.php files are loaded and run in alphabetical order.
+ */
+function runSeeders(PDO $pdo, ?string $seederName): void
+{
+    $dir = BASE_PATH . '/database/seeders';
+
+    if (!is_dir($dir)) {
+        die("Error: Seeders directory not found at {$dir}\n");
+    }
+
+    // Require the interface so seeder classes can implement it
+    require_once $dir . '/SeederInterface.php';
+
+    if ($seederName !== null) {
+        // Run a specific seeder
+        $file  = $dir . '/' . $seederName . 'Seeder.php';
+        $class = $seederName . 'Seeder';
+
+        if (!file_exists($file)) {
+            die("Error: Seeder file not found: {$file}\n");
+        }
+
+        require_once $file;
+
+        if (!class_exists($class)) {
+            die("Error: Class '{$class}' not found in {$file}\n");
+        }
+
+        $seeder = new $class();
+        $seeder->run($pdo);
+    } else {
+        // Run all seeders alphabetically
+        $files = glob($dir . '/*Seeder.php');
+        sort($files);
+
+        if (empty($files)) {
+            echo "No seeders found in {$dir}\n";
+            return;
+        }
+
+        foreach ($files as $file) {
+            $class = basename($file, '.php');
+
+            // Skip the interface file itself
+            if ($class === 'SeederInterface') {
+                continue;
+            }
+
+            require_once $file;
+
+            if (!class_exists($class)) {
+                echo "Warning: Class '{$class}' not found in {$file} — skipping.\n";
+                continue;
+            }
+
+            $seeder = new $class();
+            $seeder->run($pdo);
+        }
+    }
+}
+
+// ── Migration Commands ────────────────────────────────────────────────────────
 
 function getMigrationFiles(string $direction): array
 {
@@ -100,7 +179,7 @@ function migrate(PDO $pdo): void
         }
 
         echo "Migrating: {$name}\n";
-        
+
         $sql = file_get_contents($file);
         $pdo->exec($sql);
 
@@ -167,16 +246,13 @@ function fresh(PDO $pdo): void
 {
     echo "Dropping all tables...\n";
 
-    // SQLite way to list all tables
     $tables = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name != 'sqlite_sequence'")->fetchAll(PDO::FETCH_COLUMN);
-    
+
     foreach ($tables as $table) {
         $pdo->exec("DROP TABLE {$table}");
     }
 
-    // Ensure migrations table is recreated by re-instantiating the Database singleton logic 
-    // actually, it was already created when getInstance was called, but we dropped it.
-    // Let's just recreate it.
+    // Recreate the migrations tracking table
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS migrations (
             id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -189,118 +265,4 @@ function fresh(PDO $pdo): void
     echo "Dropped all tables successfully.\n";
 
     migrate($pdo);
-}
-
-function seed(PDO $pdo): void
-{
-    echo "Seeding database...\n";
-
-    // Ensure table exists
-    try {
-        $pdo->query('SELECT 1 FROM posts LIMIT 1');
-    } catch (PDOException $e) {
-        die("Error: The 'posts' table does not exist. Run migrations first.\n");
-    }
-
-    $stmt = $pdo->prepare("
-        INSERT INTO posts (title, excerpt, content, author, tags, date)
-        VALUES (:title, :excerpt, :content, :author, :tags, :date)
-    ");
-
-    $data = [
-        [
-            'title'   => 'Getting Started with PhpSPA',
-            'excerpt' => 'Learn how to set up your first project with Core PHP as the API backend and Vanilla JS as the SPA frontend.',
-            'content' => "PhpSPA is a zero-dependency micro-framework that proves you don't need Laravel or React to build a modern single-page application. The PHP layer acts as a REST API, routing requests through a front-controller pattern to strongly-typed controller methods. The JavaScript layer intercepts link clicks, calls the History API, and renders components client-side — all without a build step.",
-            'author'  => 'Alice Chen',
-            'tags'    => ['PHP', 'SPA', 'Tutorial'],
-            'date'    => '2026-07-01',
-        ],
-        [
-            'title'   => 'Core PHP Routing Explained',
-            'excerpt' => 'Deep dive into the front-controller pattern — how one PHP file can handle every request in your application.',
-            'content' => 'Most PHP applications scatter logic across dozens of files, each mapped to a URL. A front controller flips this: every request enters through a single index.php, which decides what to do next. This is how Laravel, Symfony, and Slim work under the hood. In PhpSPA, the Router class uses preg_match with named capture groups to match URIs against registered routes, then instantiates the right controller and calls the right method.',
-            'author'  => 'Bob Kumar',
-            'tags'    => ['PHP', 'Architecture', 'Routing'],
-            'date'    => '2026-07-05',
-        ],
-        [
-            'title'   => 'Building SPAs Without Frameworks',
-            'excerpt' => "You don't need React, Vue, or Angular to build a single-page application. Here's how the History API makes it possible.",
-            'content' => "Modern browsers ship with the History API — window.history.pushState() — which lets you change the URL without reloading the page. Combined with a custom event listener that intercepts link clicks and a simple route-matching function, you have a fully functional client-side router in under 60 lines of JavaScript. PhpSPA's router.js does exactly this, with support for named route parameters like /posts/:id.",
-            'author'  => 'Carol Okafor',
-            'tags'    => ['JavaScript', 'SPA', 'History API'],
-            'date'    => '2026-07-10',
-        ],
-        [
-            'title'   => 'ES Modules: The Native JavaScript Module System',
-            'excerpt' => 'Learn how type="module" in a script tag unlocks import/export in the browser — no bundler required.',
-            'content' => 'Since 2017, all modern browsers support ES Modules natively. By adding type="module" to your script tag, you can use import and export statements directly in the browser. This is how PhpSPA structures its frontend: each page is a module, each component is a module, and the router wires them all together. No Webpack, no Rollup, no Vite — just a web server and a browser.',
-            'author'  => 'David Park',
-            'tags'    => ['JavaScript', 'ES Modules', 'Browser'],
-            'date'    => '2026-07-12',
-        ],
-        [
-            'title'   => 'Connecting PHP to SQLite with PDO',
-            'excerpt' => 'Replace in-memory mock data with a real SQLite database — no MySQL server required, just a single file.',
-            'content' => "SQLite is the world's most widely deployed database engine — it's a single file, requires zero configuration, and ships with PHP as the pdo_sqlite extension. PDO (PHP Data Objects) gives you a consistent API to query it safely with prepared statements. In PhpSPA, the Database class wraps PDO as a singleton: the first request auto-migrates the schema, seeds initial data, and returns a shared connection — no CLI setup needed.",
-            'author'  => 'Eve Santos',
-            'tags'    => ['PHP', 'SQLite', 'PDO', 'Database'],
-            'date'    => '2026-07-14',
-        ],
-    ];
-
-    $count = 0;
-    foreach ($data as $row) {
-        $stmt->execute([
-            ':title'   => $row['title'],
-            ':excerpt' => $row['excerpt'],
-            ':content' => $row['content'],
-            ':author'  => $row['author'],
-            ':tags'    => json_encode($row['tags']),
-            ':date'    => $row['date'],
-        ]);
-        $count++;
-    }
-
-    echo "Seeded {$count} posts successfully.\n";
-}
-
-function seedUsers(PDO $pdo): void
-{
-    echo "Seeding users...\n";
-
-    try {
-        $pdo->query('SELECT 1 FROM users LIMIT 1');
-    } catch (PDOException $e) {
-        die("Error: The 'users' table does not exist. Run migrations first.\n");
-    }
-
-    $stmt = $pdo->prepare("
-        INSERT INTO users (name, email, password_hash, role)
-        VALUES (?, ?, ?, ?)
-    ");
-
-    $users = [
-        ['Admin User', 'admin@phpspa.com', 'password', 'admin'],
-        ['Demo User', 'user@phpspa.com', 'password', 'user']
-    ];
-
-    $count = 0;
-    foreach ($users as $u) {
-        // Skip if exists
-        $check = $pdo->prepare('SELECT id FROM users WHERE email = ?');
-        $check->execute([$u[1]]);
-        if (!$check->fetch()) {
-            $stmt->execute([
-                $u[0],
-                $u[1],
-                password_hash($u[2], PASSWORD_BCRYPT, ['cost' => 12]),
-                $u[3]
-            ]);
-            $count++;
-        }
-    }
-
-    echo "Seeded {$count} users successfully (Passwords are 'password').\n";
 }
