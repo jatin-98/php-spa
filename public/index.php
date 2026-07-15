@@ -18,6 +18,9 @@ require_once BASE_PATH . '/app/Core/Response.php';
 require_once BASE_PATH . '/app/Core/Router.php';
 require_once BASE_PATH . '/app/Core/Database.php';
 require_once BASE_PATH . '/app/Core/Auth.php';
+require_once BASE_PATH . '/app/Core/Middleware/MiddlewareInterface.php';
+require_once BASE_PATH . '/app/Core/Middleware/AuthMiddleware.php';
+require_once BASE_PATH . '/app/Core/Middleware/AdminMiddleware.php';
 require_once BASE_PATH . '/app/Controllers/ApiController.php';
 require_once BASE_PATH . '/app/Controllers/AuthController.php';
 
@@ -36,6 +39,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 $request = new Request();
+
+// Load the middleware registry and register it with the Router
+$middlewareRegistry = require BASE_PATH . '/app/middleware.php';
+Router::setMiddlewareRegistry($middlewareRegistry);
 
 // Load API route definitions
 require_once BASE_PATH . '/app/routes.php';
